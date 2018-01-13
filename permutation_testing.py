@@ -3,8 +3,31 @@ import numpy.linalg
 import numpy as np
 import albi_lib
 
+import os.path
+curdir = os.path.dirname(os.path.realpath(__file__))
+
+import sys
+if os.path.join(curdir, "pylmm") not in sys.path:
+    sys.path.insert(0, os.path.join(curdir, "pylmm"))
+import pylmm.lmm_unbounded
+reload(pylmm.lmm_unbounded)
+
 from tqdm import *
 
+
+################################################################################################
+# Parametric testing
+#
+
+def parametric_testing(y, kinship_matrix, kinship_eigenvectors, kinship_eigenvalues, covariates=None):
+    if covariates is None:
+        covariates = ones_like(y[:,newaxis])
+    obj = pylmm.lmm_unbounded.LMM(y[:,newaxis], kinship_eigenvectors, kinship_eigenvalues, kinship_eigenvectors, X0=covariates)
+    res = obj.fit(REML=True) 
+    return res[0], 0.5*scipy.stats.distributions.chi2.sf(2*(res[3]-obj.LLs[0]), 1)
+
+
+####
 
 def permute_columns_block(x):
     ix_i = np.random.sample(x.shape).argsort(axis=0)
@@ -29,9 +52,9 @@ def permute_columns(x, permutation_blocks, seed):
 # Derivative-based permutation testing
 #
 
-def permutation_testing_only_eigevectors(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=None, verbose=False):
+def permutation_testing_only_eigenvectors(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=None, verbose=False):
     n = len(kinship_eigenvalues)
-    weights = albi_lib.weights_zero_derivative([0], [h2_estimate], kinship_eigenvalues)[0, 0, :]
+    der = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], [h2_estimate], kinship_eigenvalues, eigenvectors_as_X=[-1])
 
     if max_memory_in_gb is not None:
         chunk_size = max(1, int((max_memory_in_gb * 2.0**30)/ (n * 64)))
@@ -40,16 +63,15 @@ def permutation_testing_only_eigevectors(y, h2_estimate, kinship_eigenvectors, k
     p = []
     for n_chunk in tqdm(range(0, n_permutations, chunk_size), disable=(not verbose)):
         n_permutations_in_chunk = min(n_permutations, n_chunk + chunk_size) - n_chunk
-        permuted = permute_columns(repeat(y[:,newaxis], n_permutations_in_chunk, 1), permutation_blocks, seed)       
-        p.append(dot(weights, dot(kinship_eigenvectors.T, permuted) ** 2) >= 0) 
+        permuted = permute_columns(repeat(y[:,newaxis], n_permutations_in_chunk, 1), permutation_blocks, (seed + n_chunk if seed is not None  else None))
+
+        p.append(der.get_derivative_signs(permuted.T[:,newaxis,:])[:,0,0] >= 0)
           
     return sum(concatenate(p))
 
-def permutation_testing(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, covariates, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=None, verbose=False):
+def permutation_testing(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, covariates, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=0, verbose=False):
     n = len(kinship_eigenvalues)
     
-    der = albi_lib.GeneralDerivativeSignCalculator([0], [h2_estimate], kinship_eigenvalues, kinship_eigenvectors, covariates)
-
     if max_memory_in_gb is not None:
         chunk_size = max(1, int((max_memory_in_gb * 2.0**30)/ (n * 64)))
     else:
@@ -58,12 +80,18 @@ def permutation_testing(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalue
     p = []
     for n_chunk in tqdm(range(0, n_permutations, chunk_size), disable=(not verbose)):
         n_permutations_in_chunk = min(n_permutations, n_chunk + chunk_size) - n_chunk
-        permuted = permute_columns(repeat(y[:,newaxis], n_permutations_in_chunk, 1), permutation_blocks, seed)       
+        permuted_y = permute_columns(repeat(y[:,newaxis], n_permutations_in_chunk, 1), permutation_blocks,  seed + n_chunk)
         
-        rotated_permuted = dot(kinship_eigenvectors.T, permuted)
+        l = []
+        for c in range(shape(covariates)[1]):
+            a = permute_columns(repeat(covariates[:,c:(c+1)], n_permutations_in_chunk, 1), permutation_blocks, seed + n_chunk) 
+            l.append(a)
 
+        permuted_X = array(l)
+        
         for i in range(n_permutations_in_chunk):
-            p.append(der.get_derivative_signs(rotated_permuted[newaxis, :, i]) >= 0)
+            der = albi_lib.GeneralDerivativeSignCalculator([0], [h2_estimate], kinship_eigenvalues, kinship_eigenvectors, permuted_X[:, :, i].T)
+            p.append(der.get_derivative_signs(permuted_y[newaxis, :, i]) >= 0)
           
     return mean(concatenate(p))
 
