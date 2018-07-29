@@ -10,7 +10,7 @@ Comments, questions, requests etc. are welcome at regevs@gmail.com.
 
 The following reads phenotypes, eigenvalues and eigenvectors from a file, and calculates the permutation p-value based on 1000 permutations for each phenotype:
 
-```python
+```
 python permutation_testing.py --kinship_eigenvalues data/example.eigenval 
                               --kinship_eigenvectors data/example.eigenvec 
                               --phenotypes data/phenotypes.txt 
@@ -42,8 +42,10 @@ For example, the parametric p-value for the first phenotype is xxx, while the pe
 
 TBD
 
-Dependencies: `numpy`, `scipy`. 
+Dependencies: `numpy`, `scipy`, `attrs`, `statsmodels`. 
+
 Install `tqdm` for progress bar (recommended, but not mandatory).
+
 We also include a slightly modified version of `pylmm` by Nick Furlotte et al.
 
 ### Parametric testing
@@ -128,4 +130,20 @@ where flags are as before, and:
 * `samc` (`-s`) - Perform very fast permutation testing (with SAMC).
 * `n_permutations` (`-n`) - Here, this refers to the number of iterations. As described in the main paper, SAMC can estimate p-values much smaller than `1/n_permutations`.
 
+Additional flags that have to do with the calibration of SAMC (see main text):
+* `n_partitions`
+* `replace_proportion`
+* `relative_sampling_error_threshold`
+* `t0`
+
 ## C++
+
+### Installation
+
+Make sure boost 1.66+ is installed on your system.
+Make sure Eigen (tested with 3.3.5, older version would probably work) is installed on your system.
+
+Compile the cpp file with Makefile (`cd` to the directory, then `make`). You may need to add the path to `boost` and `eigen`, e.g.
+```
+CXXFLAGS=-std=c++11 -Wall -pedantic -O3 -DNDEBUG -pthread -I/usr/local/Cellar/boost/1.67.0_1/include/ -I/usr/local/Cellar/eigen/3.3.5/include/eigen3/
+```
