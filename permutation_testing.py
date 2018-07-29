@@ -18,12 +18,11 @@ from tqdm import *
 ################################################################################################
 # Parametric testing
 #
-
 def parametric_testing(y, kinship_matrix, kinship_eigenvectors, kinship_eigenvalues, covariates=None):
     if covariates is None:
         covariates = ones_like(y[:,newaxis])
     obj = pylmm.lmm_unbounded.LMM(y[:,newaxis], kinship_eigenvectors, kinship_eigenvalues, kinship_eigenvectors, X0=covariates)
-    res = obj.fit(REML=True) 
+    res = obj.fit(REML=True, explicit_H=arange(0,1.01,0.01))
     return res[0], 0.5*scipy.stats.distributions.chi2.sf(2*(res[3]-obj.LLs[0]), 1)
 
 
