@@ -23,7 +23,7 @@ class TestAlbiMethods(unittest.TestCase):
         self.covariates = np.random.RandomState(777).randn(len(self.eigenvalues), n_covariates)
         self.grid = np.linspace(0, 1, n_grid_points)
 
-    def dont_test_consistency_intercept_only(self, n_random_vectors=500, h2=0.5):
+    def test_consistency_intercept_only(self, n_random_vectors=500, h2=0.5):
         der = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], self.grid, self.eigenvalues, self.eigenvectors, eigenvectors_as_X=[-1])
 
         ys = draw_multivariate_from_eigen(self.eigenvectors, h2*self.eigenvalues + (1-h2), n_random_vectors, random_seed=0)

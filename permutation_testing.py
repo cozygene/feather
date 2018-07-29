@@ -28,6 +28,7 @@ if sys.version_info.major == 3:
 
 
 from tqdm import *
+#from memory_profiler import profile
 
 
 ################################################################################################
@@ -61,7 +62,6 @@ def permute_columns_block(x):
     ix_j = tile(arange(x.shape[1]), (x.shape[0], 1))
     return x[ix_i, ix_j]
 
-
 def permute_columns(x, permutation_blocks, seed):
     np.random.seed(seed)
 
@@ -81,7 +81,7 @@ def permute_columns(x, permutation_blocks, seed):
 
 def permutation_testing_only_eigenvectors(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=None, cutoff=1e-5, verbose=False):
     n = len(kinship_eigenvalues)
-    der = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], [h2_estimate], kinship_eigenvalues, eigenvectors_as_X=[-1], cutoff=cutoff)
+    der = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], [h2_estimate], kinship_eigenvalues, kinship_eigenvectors, eigenvectors_as_X=[-1], cutoff=cutoff)
 
     if max_memory_in_gb is not None:
         chunk_size = max(1, int((max_memory_in_gb * 2.0**30)/ (n * 64)))
@@ -99,8 +99,11 @@ def permutation_testing_only_eigenvectors(y, h2_estimate, kinship_eigenvectors, 
           
     return sum(concatenate(p))
 
-def permutation_testing(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, covariates, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=0, cutoff=1e-5, verbose=False):
+def permutation_testing(y, h2_estimate, kinship_eigenvectors, kinship_eigenvalues, covariates, n_permutations, permutation_blocks=None, max_memory_in_gb=None, seed=None, cutoff=1e-5, verbose=False):
     n = len(kinship_eigenvalues)
+
+    if seed is None:
+        seed = np.random.randint(0, 2**32)
     
     if max_memory_in_gb is not None:
         chunk_size = max(1, int((max_memory_in_gb * 2.0**30)/ (n * 64)))
@@ -134,6 +137,8 @@ def naive_permutation_testing(y, h2_estimate, kinship_matrix, kinship_eigenvecto
         chunk_size = n_permutations
 
     p = []
+    pne = []
+    h2s = []
     for n_chunk in (range(0, n_permutations, chunk_size)):
         n_permutations_in_chunk = min(n_permutations, n_chunk + chunk_size) - n_chunk
         permuted_y = permute_columns(repeat(y[:,newaxis], n_permutations_in_chunk, 1), permutation_blocks,  seed + n_chunk)
@@ -145,11 +150,13 @@ def naive_permutation_testing(y, h2_estimate, kinship_matrix, kinship_eigenvecto
 
         permuted_X = array(l)
         
-        for i in tnrange(n_permutations_in_chunk, disable=(not verbose)):
+        for i in trange(n_permutations_in_chunk, disable=(not verbose)):
             h2, param_p = parametric_testing(permuted_y[:, i], kinship_matrix, kinship_eigenvectors, kinship_eigenvalues, permuted_X[:, :, i].T)            
             p.append(h2 >= h2_estimate)
+            pne.append(h2 > h2_estimate)
+            h2s.append(h2)
           
-    return mean(p)    
+    return mean(p), mean(pne), np.array(h2s)
 
 ################################################################################################
 # SAMC with ALBI
@@ -214,7 +221,7 @@ def samc_heritability_only_eigenvectors(x0, n_partitions, n_iterations, kinship_
 
     #weights_at_partitions = albi_lib.weights_zero_derivative([0], partitions, kinship_eigenvalues)[0, :, :]
 
-    derivative_calculator = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], partitions, kinship_eigenvalues, eigenvectors_as_X=[-1])
+    derivative_calculator = albi_lib.OnlyEigenvectorsDerivativeSignCalculator([0], partitions, kinship_eigenvalues, kinship_eigenvectors, eigenvectors_as_X=[-1])
 
     n_partitions_total = n_partitions + 1
 
@@ -325,7 +332,7 @@ def draw_multivariate_from_eigen(U, eigvals, times=1, random_seed=None):
 
 def samc_heritability_sim(n_partitions, n_iterations, h2, kinship_eigenvalues, kinship_eigenvectors, replace_proportion=0.05, relative_sampling_error_threshold=0.2):
     y = draw_multivariate_from_eigen(kinship_eigenvectors, h2*kinship_eigenvalues + (1-h2))[:, 0]
-    print(samc_heritability(y, n_partitions, n_iterations, kinship_eigenvalues, kinship_eigenvectors, replace_proportion, relative_sampling_error_threshold))
+    #print(samc_heritability(y, n_partitions, n_iterations, kinship_eigenvalues, kinship_eigenvectors, replace_proportion, relative_sampling_error_threshold))
     print(samc_heritability_only_eigenvectors(y, n_partitions, n_iterations, kinship_eigenvalues, kinship_eigenvectors, replace_proportion, relative_sampling_error_threshold))
     K = np.linalg.multi_dot([kinship_eigenvectors, diag(kinship_eigenvalues), kinship_eigenvectors.T])
     res = parametric_testing(y, K, kinship_eigenvectors, kinship_eigenvalues)

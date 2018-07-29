@@ -185,7 +185,6 @@ class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
             else:
                 self.B_multipliers[iH] = (first_logdet) * (1.0/self.n_effective)        
 
-
     def get_derivative_signs(self, ys):
         """
         Get the signs of the derivative for the supplied vectors.
