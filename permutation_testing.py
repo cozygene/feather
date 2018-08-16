@@ -22,10 +22,10 @@ import pylmm.lmm_unbounded
 import albi_lib
 import samc
 
-if sys.version_info.major == 3:
-    importlib.reload(pylmm.lmm_unbounded)
-    #importlib.reload(samc)
-    importlib.reload(albi_lib)
+# if sys.version_info.major == 3:
+#     importlib.reload(pylmm.lmm_unbounded)
+#     #importlib.reload(samc)
+#     importlib.reload(albi_lib)
 
 try:
     from tqdm import *

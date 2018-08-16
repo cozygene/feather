@@ -378,14 +378,14 @@ int main(int argc, char** argv) {
 	    ("heritabilities_filename", po::value<string>()->default_value(""), "Heritabilities filename")
         ("output_filename", po::value<string>()->default_value(""), "Output filename")    
 	    ("phenotype_indices", po::value<string>()->default_value(""), "Which phenotype indices?")
-	    ("n_permutations", po::value<int>()->default_value(10000), "# of permutations")
+	    ("n_permutations", po::value<int>()->default_value(100000), "# of permutations")
 	    ("n_chunks", po::value<int>()->default_value(10), "# of chunks")
 	    ("n_repetitions", po::value<int>()->default_value(1), "# of repetitions per phenotype")
 	    ("n_threads", po::value<int>()->default_value(-1), "# of threads to use (-1 for # of cpus)")
 	    ("samc", po::value<bool>()->default_value(false), "Use SAMC (or regular permutation testing)")
 	    ("debug", po::value<bool>()->default_value(false), "Print debug files")
 	    ("n_partitions", po::value<int>()->default_value(50), "Number of partitions")
-	    ("t0", po::value<int>()->default_value(10000), "t0 parameter of SAMC")
+	    ("t0", po::value<int>()->default_value(1000), "t0 parameter of SAMC")
 	    ("replace_proportion", po::value<double>()->default_value(0.05), "Replace proportion")
 	    ("relative_sampling_error_threshold", po::value<double>()->default_value(0.0001), "relative_sampling_error_threshold")
 	;
@@ -493,7 +493,7 @@ int main(int argc, char** argv) {
 					samc_objects.push_back(shared_ptr<SAMC>(new SAMC(vm["n_partitions"].as<int>(), n_permutations, eigenvalues, eigenvectors_T, 
 							  vm["replace_proportion"].as<double>(), vm["relative_sampling_error_threshold"].as<double>(), vm["t0"].as<int>())));
 
-					// samc_objects.back()->run(phenotypes.col(n_phenotype), H2s(n_phenotype), &results(result_index, n_repeat));
+					//samc_objects.back()->run(phenotypes.col(n_phenotype), H2s(n_phenotype), &results(result_index, n_repeat));
 					//thread_pool.schedule(boost::bind(&SAMC::run, boost::ref(*samc_objects.back()), 
 					//								 phenotypes.col(n_phenotype), H2s(n_phenotype), &results(result_index, n_repeat)));
 					boost::asio::post(thread_pool, boost::bind(&SAMC::run, boost::ref(*samc_objects.back()), 
@@ -502,6 +502,8 @@ int main(int argc, char** argv) {
 				}
 				result_index++;
 			}
+
+			thread_pool.join();
 		} // End of thread pool scope - all threads should finish here
 
 	} else {

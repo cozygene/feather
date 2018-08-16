@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.stats
-import statsmodels.api as sm
 import attr
 
 
