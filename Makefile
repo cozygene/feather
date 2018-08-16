@@ -1,4 +1,4 @@
-CXX=clang++
+CXX=g++
 
 # Change paths to boost and Eigen installations
 CXXFLAGS=-std=c++11 -Wall -pedantic -O3 -DNDEBUG -pthread -I/usr/local/Cellar/boost/1.67.0_1/include/ -I/usr/local/Cellar/eigen/3.3.5/include/eigen3/
