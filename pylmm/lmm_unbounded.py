@@ -323,7 +323,7 @@ class LMM:
         """
         n = len(self.LLs)
         HOpt = []
-        for i in range(1, n - 2):
+        for i in range(1, n - 1):
             if self.LLs[i - 1] < self.LLs[i] and self.LLs[i] > self.LLs[i + 1]:
                 HOpt.append(
                     optimize.brent(self.LL_brent, args=(X, REML), brack=(H[i - 1], H[i + 1])))
@@ -350,7 +350,6 @@ class LMM:
            This function calculates the LLs over a grid and then uses .getMax(...) to find the optimum.
            Given this optimum, the function computes the LL and associated ML solutions.
         """
-
         if X == None:
             X = self.X0t
         else:

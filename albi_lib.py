@@ -2,7 +2,6 @@ from numpy import * # for: newaxis, isclose, seterr, random, array, maximum, res
 import numpy.linalg
 import bisect
 
-
 # Ignore divide by 0 warnings
 seterr(divide='ignore', invalid='ignore')
 
@@ -14,8 +13,11 @@ class DerivativeSignCalculator(object):
     def get_derivative_signs(us):
         raise NotImplementedError("Should be overrided")
 
+    def get_derivative_signs_rotated(us):
+        raise NotImplementedError("Should be overrided")
+
 class OnlyEigenvectorsDerivativeSignCalculator(DerivativeSignCalculator):
-    def __init__(self, h2_values, H2_values, kinship_eigenvalues, eigenvectors_as_X=[-1], REML=True):
+    def __init__(self, h2_values, H2_values, kinship_eigenvalues, kinship_eigenvectors=None, eigenvectors_as_X=[-1], REML=True, cutoff=1e-5):
         """
         Calculates the weights in the expression of the derivative of the likelihood, in the case that
         the fixed effects X are eigenvectors of the kinship matrix. Each weight is parametrized by 
@@ -26,8 +28,11 @@ class OnlyEigenvectorsDerivativeSignCalculator(DerivativeSignCalculator):
             h2_values - a vector of size N, of all possible values of h^2
             H2_values - a vector of size M, of all possible values of H^2
             kinship_eigenvalues - A vector of size K of the eigenvalues of the kinship matrix, in decreasing order.
+            kinship_eigenvectors - A matrix of size K x K whose columns are the eigenvectors of the kinship matrix, corresponding to the given eigenvalues.
+                                   This is optional if only using get_derivative_signs_rotated.             
             eigenvectors_as_X - A list of indices, of which eigenvectors of the kinship matrix are fixed effects.
             REML - True is REML, False if ML.
+            cutoff - Cutoff below which eigenvalues are considered zero.
 
         Calculates the weights -
             A matrix of size N x M x K, of the weights for the cartesian product of h2_values, H2_values and an index.
@@ -39,24 +44,40 @@ class OnlyEigenvectorsDerivativeSignCalculator(DerivativeSignCalculator):
             h2_values = [h2_values]
         if isinstance(H2_values, int) or isinstance(H2_values, float):
             H2_values = [H2_values]
-        n_samples = len(kinship_eigenvalues)
+        self.n_samples = len(kinship_eigenvalues)
 
         H2_values = reshape(H2_values, (1, len(H2_values), 1))
         h2_values = reshape(h2_values, (len(h2_values), 1, 1))
-        kinship_eigenvalues = reshape(kinship_eigenvalues, (1, 1, n_samples))
+        
+
+        reverse_sorted_indices = argsort(kinship_eigenvalues)[::-1]
+        self.kinship_eigenvalues = array(kinship_eigenvalues)[reverse_sorted_indices]
+        self.kinship_eigenvectors = array(kinship_eigenvectors)[:, reverse_sorted_indices]
+
+        self.n_effective = len(where(self.kinship_eigenvalues >= cutoff)[0])
+        self.kinship_eigenvalues = self.kinship_eigenvalues[:self.n_effective]
+
+        #self.kinship_eigenvalues = maximum(self.kinship_eigenvalues, 1e-10)        
+        self.kinship_eigenvalues = reshape(self.kinship_eigenvalues, (1, 1, self.n_effective))
+
+        kinship_eigenvectors = self.kinship_eigenvectors
+        kinship_eigenvalues = self.kinship_eigenvalues
+
 
         # Calculate weights
-        projection = ones((1, 1, n_samples))
+        projection = ones((1, 1, self.n_samples))
         if len(eigenvectors_as_X):
             projection[0, 0, eigenvectors_as_X] = 0
+
+        projection = projection[:,:,:self.n_effective]
 
 
         if REML:
             ds = projection * (kinship_eigenvalues - 1) / (H2_values * (kinship_eigenvalues-1) + 1)                
-            denom = n_samples - len(eigenvectors_as_X)
+            denom = projection.sum()
         else:
             ds = (kinship_eigenvalues - 1) / (H2_values * (kinship_eigenvalues - 1) + 1)
-            denom = n_samples
+            denom = self.n_effective
 
 
         self.weights = projection * (h2_values * (kinship_eigenvalues - 1) + 1) / \
@@ -65,19 +86,39 @@ class OnlyEigenvectorsDerivativeSignCalculator(DerivativeSignCalculator):
 
         self.weights = nan_to_num(self.weights)
 
-
-    def get_derivative_signs(self, us):
+    def get_derivative_signs(self, ys):
         """
         Get the signs of the derivative for the supplied vectors.
 
         Arguments:
-            us - a matrix of size T X N X K, of T X N vectors (T vectors per N of all possible values of h^2)
+            ys - a matrix of size T X N X K, of T X N vectors (T vectors per N of all possible values of h^2)
 
         Returns:
             A matrix of size T X N X M of the derivative signs of each vector at the M given H2 points
         """
-        assert shape(us)[1] == shape(self.weights)[0]
-        assert shape(us)[2] == shape(self.weights)[2]
+        assert shape(ys)[1] == shape(self.weights)[0]
+        assert shape(ys)[2] == self.n_samples
+        assert self.kinship_eigenvectors is not None
+
+        rotated_ys = tensordot(ys, self.kinship_eigenvectors[:,:self.n_effective], axes=((2), (0)))
+
+        return self.get_derivative_signs_rotated(rotated_ys)
+
+
+
+    def get_derivative_signs_rotated(self, us):
+        """
+        Get the signs of the derivative for the supplied vectors.
+
+        Arguments:
+            us - ***ROTATED!!!!!***** a matrix of size T X N X K, of T X N rotated vectors (T vectors per N of all possible values of h^2)
+
+        Returns:
+            A matrix of size T X N X M of the derivative signs of each vector at the M given H2 points
+        """
+        assert shape(us)[1] == shape(self.weights)[0], (shape(us)[1], shape(self.weights)[0])
+        assert shape(us)[2] == shape(self.weights)[2], (shape(us)[2], shape(self.weights)[2])
+
 
         us = us[:,:,newaxis,:]
         dotproducts = sum((us**2) * self.weights[newaxis, :, :, :], 3)   
@@ -88,11 +129,11 @@ class OnlyEigenvectorsDerivativeSignCalculator(DerivativeSignCalculator):
 # Retain for backward compatibility
 def weights_zero_derivative(h2_values, H2_values, kinship_eigenvalues, 
                             eigenvectors_as_X=[-1], REML=True):
-    return OnlyEigenvectorsDerivativeSignCalculator(h2_values, H2_values, kinship_eigenvalues, eigenvectors_as_X=[-1], REML=True).weights
+    return OnlyEigenvectorsDerivativeSignCalculator(h2_values, H2_values, kinship_eigenvalues, eigenvectors_as_X=eigenvectors_as_X, REML=REML).weights
     
 
 class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
-    def __init__(self, h2_values, H2_values, kinship_eigenvalues, kinship_eigenvectors, covariates, REML=True):
+    def __init__(self, h2_values, H2_values, kinship_eigenvalues, kinship_eigenvectors, covariates, REML=True, cutoff=1e-5):
         """
         Calculate quantities to be used later when calculating derivative signs.
 
@@ -103,8 +144,9 @@ class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
             kinship_eigenvectors - A matrix of size K x K whose columns are the eigenvectors of the kinship matrix, corresponding to the given eigenvalues.
             covariates - a matrix of size K x P, of P covariates to be used.
             REML - True is REML, False if ML.
+            cutoff - Cutoff below which eigenvalues are considered zero.
         """
-        n_samples = len(kinship_eigenvalues)
+        self.n_samples = len(kinship_eigenvalues)
         n_intervals = len(H2_values)-1
         n_covariates = shape(covariates)[1]
 
@@ -112,20 +154,22 @@ class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
         self.H2_values = array(H2_values)
         
         # Make sure the eigenvalues are in decreasing order and nonzero
-        kinship_eigenvalues = maximum(kinship_eigenvalues, 1e-10)
         reverse_sorted_indices = argsort(kinship_eigenvalues)[::-1]
         self.kinship_eigenvalues = array(kinship_eigenvalues)[reverse_sorted_indices]
         self.kinship_eigenvectors = array(kinship_eigenvectors)[:, reverse_sorted_indices]
 
-        rotated_X = dot(self.kinship_eigenvectors.T, covariates)
+        self.n_effective = len(where(self.kinship_eigenvalues >= cutoff)[0])
+        self.kinship_eigenvalues = self.kinship_eigenvalues[:self.n_effective]
+
+        rotated_X = dot(self.kinship_eigenvectors.T, covariates)[:self.n_effective,:]
 
         # Size: M X K X P
-        self.X_XtdXi_matrices = zeros((len(self.H2_values), n_samples, n_covariates))
+        self.X_XtdXi_matrices = zeros((len(self.H2_values), self.n_effective, n_covariates))
         for iH, H2 in enumerate(self.H2_values): 
             self.X_XtdXi_matrices[iH, :, :] = dot(rotated_X, linalg.inv(dot(rotated_X.T * (1.0/(H2*(self.kinship_eigenvalues-1) + 1)), rotated_X)))
 
         # Size: M X P X K
-        self.Xt_Dv_matrices = zeros((len(self.H2_values), n_covariates, n_samples))
+        self.Xt_Dv_matrices = zeros((len(self.H2_values), n_covariates, self.n_effective))
         for iH, H2 in enumerate(self.H2_values): 
             self.Xt_Dv_matrices[iH, :, :] = rotated_X.T * (1.0/(H2*(self.kinship_eigenvalues-1) + 1))
 
@@ -137,24 +181,40 @@ class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
             second_logdet = nansum(linalg.inv(dot(rotated_X.T * (1.0/(H2*(self.kinship_eigenvalues-1) + 1)), rotated_X))  *
                                      dot(rotated_X.T * (-(self.kinship_eigenvalues-1)/((H2*(self.kinship_eigenvalues-1) + 1)**2)), rotated_X))
             if REML:
-                self.B_multipliers[iH] = (first_logdet + second_logdet) * (1.0/(n_samples - n_covariates))
+                self.B_multipliers[iH] = (first_logdet + second_logdet) * (1.0/(self.n_effective - n_covariates))
             else:
-                self.B_multipliers[iH] = (first_logdet) * (1.0/n_samples)        
+                self.B_multipliers[iH] = (first_logdet) * (1.0/self.n_effective)        
 
-    def get_derivative_signs(self, us):
+    def get_derivative_signs(self, ys):
         """
         Get the signs of the derivative for the supplied vectors.
 
         Arguments:
-            us - a matrix of size N X K, of N vectors, one per value of h2
+            ys - a matrix of size N X K, of N vectors, one per value of h2
 
         Returns:
             A matrix of size N X M of the derivative signs of each vector at the M given H2 points
         """
-        n_samples = len(self.kinship_eigenvalues)
+        assert shape(ys)[0] == len(self.h2_values)
+        assert shape(ys)[1] == self.n_samples
 
+        rotated_ys = tensordot(ys, self.kinship_eigenvectors[:,:self.n_effective], axes=((1), (0)))
+
+        return self.get_derivative_signs_rotated(rotated_ys)
+
+
+    def get_derivative_signs_rotated(self, us):
+        """
+        Get the signs of the derivative for the supplied vectors.
+
+        Arguments:
+            us - a matrix of size N X K, of N ***ROTATED*** vectors, one per value of h2
+
+        Returns:
+            A matrix of size N X M of the derivative signs of each vector at the M given H2 points
+        """
         assert shape(us)[0] == len(self.h2_values)
-        assert shape(us)[1] == n_samples
+        assert shape(us)[1] == self.n_effective
 
         vs = ((self.h2_values[:, newaxis] * (self.kinship_eigenvalues[newaxis, :] - 1) + 1)**0.5) * us
 
@@ -162,7 +222,7 @@ class GeneralDerivativeSignCalculator(DerivativeSignCalculator):
         w1s = tensordot(vs, self.Xt_Dv_matrices, axes=([1, 2]))
 
         # Size N X M X K
-        w2s = zeros([len(self.h2_values), len(self.H2_values), n_samples])
+        w2s = zeros([len(self.h2_values), len(self.H2_values), self.n_effective])
         for ih, h2 in enumerate(self.h2_values):
             w2s[ih, :, :] = sum(self.X_XtdXi_matrices * w1s[ih, :, newaxis, :], 2)
 
@@ -220,7 +280,7 @@ def estimate_distributions_eigenvectors(h2_values, H2_values, kinship_eigenvalue
     for i in n_random_samples:
         # Avoid replicating weights across h2's, so that each sample is independent
         us = rng.normal(size=(monte_carlo_size, len(h2_values), n_samples))
-        dotproducts = sign_calculator.get_derivative_signs(us)
+        dotproducts = sign_calculator.get_derivative_signs_rotated(us)
         
         # Size: monte_carlo_size X N
         hit_zero = (dotproducts[:, :, 0] <= 0)
@@ -279,7 +339,7 @@ def estimate_distributions_general(h2_values, H2_values, kinship_eigenvalues, ki
     # Main loop
     for i in n_random_samples:        
         us = rng.normal(size=(len(h2_values), n_samples))         
-        dotproducts = sign_calculator.get_derivative_signs(us)
+        dotproducts = sign_calculator.get_derivative_signs_rotated(us)
 
         hit_zero = (dotproducts[:, 0] <= 0)
         hit_one = (dotproducts[:, -1] >= 0)

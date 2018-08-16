@@ -3,7 +3,12 @@ import scipy.stats
 import statsmodels.api as sm
 import attr
 
-from tqdm import *
+
+try:
+    from tqdm import *
+except:
+    trange = lambda *args, **kw: range(*args, **kws)
+    tqdm = lambda x, *args, **kw: x
 
 ###############################################################################################
 # General SAMC implementation (Yu. et al, Biostatistics 2011)
@@ -53,16 +58,16 @@ def SAMC(samc_parameters):
 	
 	# Initialize values for algorithm
 	current_x = _p.x0
-	current_theta = array(_p.theta0)
+	current_theta = np.array(_p.theta0)
 	current_statistic, current_partition = _p.test_statistic_func(current_x, 0)
 
-	observed_sampling_distribution = zeros_like(_p.required_sampling_distribution)
+	observed_sampling_distribution = np.zeros_like(_p.required_sampling_distribution)
 	m = len(_p.required_sampling_distribution)
 
 	# Statistics to aggregate
 	statistics = []
 
-	with tnrange(_p.n_iterations) as T:
+	with trange(_p.n_iterations, leave=False) as T:
 		for n_iter in T:
 			# Draw a new data point
 			y, proposal_ratio = _p.generate_sample_func(current_x)
@@ -70,9 +75,9 @@ def SAMC(samc_parameters):
 			# Calculate the ratio for MH
 			suggested_statistic, suggested_partition = _p.test_statistic_func(y, current_partition)
 			if _p.fix_theta:
-				r = exp(_p.theta0[current_partition] - _p.theta0[suggested_partition] + _p.log_psi(y) - _p.log_psi(current_x)) * proposal_ratio
+				r = np.exp(_p.theta0[current_partition] - _p.theta0[suggested_partition] + _p.log_psi(y) - _p.log_psi(current_x)) * proposal_ratio
 			else:
-				r = exp(current_theta[current_partition] - current_theta[suggested_partition] + _p.log_psi(y) - _p.log_psi(current_x)) * proposal_ratio
+				r = np.exp(current_theta[current_partition] - current_theta[suggested_partition] + _p.log_psi(y) - _p.log_psi(current_x)) * proposal_ratio
 
 			# Accept in probability min(1, r)
 			updated = False
@@ -87,7 +92,7 @@ def SAMC(samc_parameters):
 			observed_sampling_distribution[current_partition] += 1
 
 			# Update weights
-			d = -array(_p.required_sampling_distribution)
+			d = -np.array(_p.required_sampling_distribution)
 			d[current_partition] += 1
 			gain_factor = (float(_p.t0) / max(_p.t0, n_iter)) ** _p.step_size_power
 			current_theta += gain_factor * d
@@ -95,14 +100,16 @@ def SAMC(samc_parameters):
 			# Decide if we should stop
 			m0 = sum(observed_sampling_distribution == 0)
 			relative_sampling_error =  max(abs(observed_sampling_distribution/float(n_iter+1) - 1.0/(m-m0)) / (1.0/(m-m0)))
-			chisquare = scipy.stats.chisquare(observed_sampling_distribution)
-			regp = sm.OLS(observed_sampling_distribution, sm.add_constant(arange(len(observed_sampling_distribution)))).fit().pvalues[-1]
-			if n_iter % (_p.n_iterations/10) == 1:
-				T.write("RSE: %f\t Chi^2 p, log10(p): %f %f\t LinReg p, log10(p): %f %f" % (relative_sampling_error, chisquare.pvalue, log10(chisquare.pvalue), regp, log10(regp)))
+
+			# chisquare = scipy.stats.chisquare(observed_sampling_distribution)
+			# regp = sm.OLS(observed_sampling_distribution, sm.add_constant(np.arange(len(observed_sampling_distribution)))).fit().pvalues[-1]
+			# if n_iter % (_p.n_iterations/10) == 1:
+			# 	T.write("RSE: %f\t Chi^2 p, log10(p): %f %f\t LinReg p, log10(p): %f %f" % (relative_sampling_error, chisquare.pvalue, np.log10(chisquare.pvalue), regp, np.log10(regp)))
+
 			if relative_sampling_error < _p.relative_sampling_error_threshold:
 				break
 
-	return current_theta, observed_sampling_distribution, statistics
+	return current_theta, observed_sampling_distribution, statistics, relative_sampling_error
 
 
 @attr.s
@@ -114,9 +121,9 @@ def SAMC_simple(samc_simple_parameters):
 	samc_simple_parameters - An SAMCSimpleParameters instance
 	"""
 	_p = samc_simple_parameters
-	_p.required_sampling_distribution = ones(_p.n_partitions) / float(_p.n_partitions)
+	_p.required_sampling_distribution = np.ones(_p.n_partitions) / float(_p.n_partitions)
 	_p.log_psi = lambda x: 0.0
-	_p.theta0 = ones(_p.n_partitions) / float(_p.n_partitions)
+	_p.theta0 = np.ones(_p.n_partitions) / float(_p.n_partitions)
 
 	return SAMC(_p)
 
@@ -149,8 +156,8 @@ def SAMC_two_sample_t_test(n_partitions, n_iterations, n=100, replace_proportion
 	x0 = vstack([np.random.normal(1, 1, size=n), np.random.normal(0, 1, size=n)])
 	
 	observed_statistic, p = scipy.stats.ttest_ind(x0[0], x0[1])
-	print observed_statistic, p
-	partitions = concatenate([arange(0, observed_statistic, observed_statistic/n_partitions)[1:], [observed_statistic]])
+	#print observed_statistic, p
+	partitions = np.concatenate([np.arange(0, observed_statistic, observed_statistic/n_partitions)[1:], [observed_statistic]])
 
 	return SAMC_simple(SAMCSimpleParameters(
 		x0=x0, 
