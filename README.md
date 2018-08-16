@@ -170,14 +170,13 @@ The syntax is:
                            --eigenvalues_filename filename
                            --phenotypes_filename filename
                            --heritabilities_filename filename
-                          [--n_permutations 10000]                          
+                          [--n_permutations 10000]    
+                          [--n_repetitions 1]
                           [--output_filename filename]
                           [--phenotype_indices 0-3,5-7]
                           [--n_chunks 10]
                           [--n_threads -1]
 ```
-where:
-
 where:
 * `eigenvectors_filename` - A file containing the eigenvalues of the kinship matrix, one eigenvalue per line, in text format. This could be created, for example, with GCTA's --pca flag, after removing the IDs from the output file (**required**).
 * `eigenvalues_filename` - A file containing the eigenvectors of the kinship matrix, one eigenvector per column, in text format. This could be created, for example, with GCTA's --pca flag, after removing the IDs from the output file  (**required**).
@@ -187,9 +186,56 @@ where:
 python2 permutation_testing.py -k data/example.eigenval -v data/example.eigenvec -y data/phenotypes.txt --parametric | tail -n +2 | cut -f 2 > data/heritability_estimates.txt
 ```
 
-* `n_permutations` - How many permutatation to use?
-* `output_filename` - Output filename; if not specified, `[phenotypes_filename].out` will be used. 
+* `n_permutations` - How many permutations to use?
+* `n_repetitions` - If you want to repeat the analysis; how many times to do that?
+* `output_filename` - Output filename; if not specified, `[phenotypes_filename].out` will be used. Results are printed to the screen as well.
 * `phenotype_indices` - If you want to run only on some of the phenotypes, you can specify their indices here. You can use comma-separated ranges (e.g., `0,3,4`, `0-3,5-7`).
 * `n_chunks` - Divide the permutations into this number of chunks. Make this larger if you run into memory issues.
 * `n_threads` - How many threads to use? Use -1 for the number of processors on your computer.
 
+The output is simply a list of p-values, one per phenotype, e.g.:
+```
+$ ./permutation_testing_samc --eigenvectors_filename ./data/example.eigenvec --eigenvalues_filename ./data/example.eigenval --phenotypes_filename ./data/phenotypes.txt --heritabilities_filename ./data/heritability_estimates.txt 
+
+$ cat ./data/phenotypes.txt.out 
+     1
+0.1042
+0.0005
+ 0.019
+0.0006
+0.0006
+     0
+     0
+     0
+     0
+```
+
+#### Permutation testing with SAMC
+The syntax is:
+
+```
+./permutation_testing_samc --eigenvectors_filename filename
+                           --eigenvalues_filename filename
+                           --phenotypes_filename filename
+                           --heritabilities_filename filename
+                          [--n_permutations 10000]                          
+                          [--output_filename filename]
+                          [--phenotype_indices 0-3,5-7]
+                          [--n_chunks 10]
+                          [--n_threads -1]
+                          [--samc true]
+                          [--debug false]
+                          [--n_partitions 50]
+                          [--replace_proportion 0.05]
+                          [--relative_sampling_error_threshold 0.0001]                          
+                          [--t0 10000]
+```
+Options are as before, with the addition of:
+* `samc` - Set to `true` to run SAMC (`false` is the default, meaning permutation testing as before).
+* `debug` - Set to `true`, to generate additional files with RSE and bias estimates, for parameter calibration.
+
+Additional flags that have to do with the calibration of SAMC (see main text):
+* `n_partitions`
+* `replace_proportion`
+* `relative_sampling_error_threshold`
+* `t0`
