@@ -34,19 +34,19 @@ n_phen  h2_est  param_p perm_p
 9	1.00000	1.64e-09	0
 ```
 
-For example, the parametric p-value for the first phenotype is xxx, while the permutation p-value is yyy.
+For example, the parametric p-value for the first phenotype is `0.5`, while the permutation p-value is `0.538`.
 
 ## Python
 
 ### Installation
 
-TBD
+Simply download or clone this directory.
 
-Dependencies: `numpy`, `scipy`, `attrs`.
+Dependencies: `numpy`, `scipy`, [`attrs`](http://www.attrs.org/en/stable/).
 
-Install `tqdm` for progress bar (recommended, but not mandatory).
+Install [`tqdm`](https://github.com/tqdm/tqdm) for progress bar (recommended, but not mandatory).
 
-We also include a slightly modified version of `pylmm` by Nick Furlotte et al [https://github.com/nickFurlotte/pylmm].
+We also include (no installation necessary) a slightly modified version of [`pylmm`](https://github.com/nickFurlotte/pylmm) by Nick Furlotte et al.
 
 ### Parametric testing
 
