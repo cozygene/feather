@@ -138,6 +138,10 @@ Additional flags that have to do with the calibration of SAMC (see main text):
 
 ## C++
 
+**Important**: The C++ implementation currently does not support covariates.
+
+The C++ implementation is more limited at this stage. If you want to use some yet-unimplemented feature, let me know!
+
 ### Installation
 
 Make sure boost 1.66+ is installed on your system.
@@ -147,3 +151,45 @@ Compile the cpp file with Makefile (`cd` to the directory, then `make`). You may
 ```
 CXXFLAGS=-std=c++11 -Wall -pedantic -O3 -DNDEBUG -pthread -I/usr/local/Cellar/boost/1.67.0_1/include/ -I/usr/local/Cellar/eigen/3.3.5/include/eigen3/
 ```
+
+### Running
+
+To see all flags:
+```
+./permutation_testing_samc --help
+```
+
+You can perform fast permutation testing (using the derivative-trick, no SAMC), or SAMC-based permutation testing.
+
+#### Fast permutation testing (no SAMC)
+
+The syntax is:
+
+```
+./permutation_testing_samc --eigenvectors_filename filename
+                           --eigenvalues_filename filename
+                           --phenotypes_filename filename
+                           --heritabilities_filename filename
+                          [--n_permutations 10000]                          
+                          [--output_filename filename]
+                          [--phenotype_indices 0-3,5-7]
+                          [--n_chunks 10]
+                          [--n_threads -1]
+```
+where:
+
+where:
+* `eigenvectors_filename` - A file containing the eigenvalues of the kinship matrix, one eigenvalue per line, in text format. This could be created, for example, with GCTA's --pca flag, after removing the IDs from the output file (**required**).
+* `eigenvalues_filename` - A file containing the eigenvectors of the kinship matrix, one eigenvector per column, in text format. This could be created, for example, with GCTA's --pca flag, after removing the IDs from the output file  (**required**).
+* `phenotypes_filename` - A file containing the phenotypes, one phenotype per column, in text format (**required**).
+* `heritabilities_filename` - A file containing the estimated heritabilities, one estimated value per row, in text format (**required**). This can be obtained from the Python version by running, e.g.:
+```
+python2 permutation_testing.py -k data/example.eigenval -v data/example.eigenvec -y data/phenotypes.txt --parametric | tail -n +2 | cut -f 2 > data/heritability_estimates.txt
+```
+
+* `n_permutations` - How many permutatation to use?
+* `output_filename` - Output filename; if not specified, `[phenotypes_filename].out` will be used. 
+* `phenotype_indices` - If you want to run only on some of the phenotypes, you can specify their indices here. You can use comma-separated ranges (e.g., `0,3,4`, `0-3,5-7`).
+* `n_chunks` - Divide the permutations into this number of chunks. Make this larger if you run into memory issues.
+* `n_threads` - How many threads to use? Use -1 for the number of processors on your computer.
+
