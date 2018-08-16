@@ -34,19 +34,19 @@ n_phen  h2_est  param_p perm_p
 9	1.00000	1.64e-09	0
 ```
 
-For example, the parametric p-value for the first phenotype is xxx, while the permutation p-value is yyy.
+For example, the parametric p-value for the first phenotype is `0.5`, while the permutation p-value is `0.538`.
 
 ## Python
 
 ### Installation
 
-TBD
+Simply download or clone this directory.
 
-Dependencies: `numpy`, `scipy`, `attrs`, `statsmodels`. 
+Dependencies: `numpy`, `scipy`, [`attrs`](http://www.attrs.org/en/stable/).
 
-Install `tqdm` for progress bar (recommended, but not mandatory).
+Install [`tqdm`](https://github.com/tqdm/tqdm) for progress bar (recommended, but not mandatory).
 
-We also include a slightly modified version of `pylmm` by Nick Furlotte et al.
+We also include (no installation necessary) a slightly modified version of [`pylmm`](https://github.com/nickFurlotte/pylmm) by Nick Furlotte et al.
 
 ### Parametric testing
 
@@ -79,7 +79,7 @@ We hope to soon add the option of having a file with pre-calculated heritability
 You can perform 3 types of permutation testing:
 * Naive - without any speedups, plain old permuting the phenotypes and re-estimating. This is slow but safe.
 * Fast - using the derivative trick, without SAMC (see paper).
-* Very fast - using SAMC; is faster with >100,000 permutations.
+* Very fast - using SAMC; is faster with >100,000 permutations, but approximate.
 
 #### Naive
 
@@ -189,7 +189,7 @@ python2 permutation_testing.py -k data/example.eigenval -v data/example.eigenvec
 * `n_permutations` - How many permutations to use?
 * `n_repetitions` - If you want to repeat the analysis; how many times to do that?
 * `output_filename` - Output filename; if not specified, `[phenotypes_filename].out` will be used. Results are printed to the screen as well.
-* `phenotype_indices` - If you want to run only on some of the phenotypes, you can specify their indices here. You can use comma-separated ranges (e.g., `0,3,4`, `0-3,5-7`).
+* `phenotype_indices` - If you want to run only on some of the phenotypes, you can specify their indices here. You can use comma-separated ranges (e.g., `0,3,4` or `0-3,5-7`).
 * `n_chunks` - Divide the permutations into this number of chunks. Make this larger if you run into memory issues.
 * `n_threads` - How many threads to use? Use -1 for the number of processors on your computer.
 
@@ -218,12 +218,12 @@ The syntax is:
                            --eigenvalues_filename filename
                            --phenotypes_filename filename
                            --heritabilities_filename filename
+                           --samc true
                           [--n_permutations 10000]                          
                           [--output_filename filename]
                           [--phenotype_indices 0-3,5-7]
                           [--n_chunks 10]
-                          [--n_threads -1]
-                          [--samc true]
+                          [--n_threads -1]                          
                           [--debug false]
                           [--n_partitions 50]
                           [--replace_proportion 0.05]
