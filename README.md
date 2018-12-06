@@ -242,5 +242,5 @@ Additional flags that have to do with the calibration of SAMC (see main text):
 
 ## How to cite?
 
-The relevant paper is this (TBD).
+The relevant paper is [this](https://www.nature.com/articles/s41467-018-07276-w).
 If you use the parametric option, based on `pylmm`, please refer to `https://github.com/nickFurlotte/pylmm`.
