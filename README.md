@@ -6,6 +6,8 @@ We currently offer a general Python implementation, and a more limited, but quit
 
 Comments, questions, requests etc. are welcome at regevs@gmail.com.
 
+Citation: Schweiger, Regev, Eyal Fisher, Omer Weissbrod, Elior Rahmani, Martina Müller-Nurasyid, Sonja Kunze, Christian Gieger, Melanie Waldenberger, Saharon Rosset, and Eran Halperin. "Detecting heritable phenotypes without a model using fast permutation testing for heritability and set-tests." Nature communications 9, no. 1 (2018): 4919.
+
 ## Simple example
 
 The following reads phenotypes, eigenvalues and eigenvectors from a file, and calculates the permutation p-value based on 1000 permutations for each phenotype:
