@@ -126,7 +126,7 @@ python permutation_testing.py --kinship_eigenvalues filename
                              [--covariates filename]
                              [--no_intercept]
                              --permutation --samc
-                             --n_permutations 1000
+                             --n_permutations 100000
 ```
 where flags are as before, and:
 * `samc` (`-s`) - Perform very fast permutation testing (with SAMC).
@@ -137,6 +137,8 @@ Additional flags that have to do with the calibration of SAMC (see main text):
 * `replace_proportion`
 * `relative_sampling_error_threshold`
 * `t0`
+
+Note that you have to have a sufficient number of permutations (e.g. 100,000) for convergence. This is tracked by the relative sampling error, which is printed (`RSE` column), and should be lower than `--relative_sampling_error_threshold` (defaults to `0.01`).
 
 ## C++
 
