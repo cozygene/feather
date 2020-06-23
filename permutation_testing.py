@@ -471,7 +471,7 @@ if __name__ == '__main__':
             y, 
             kinship_eigenvectors, 
             kinship_eigenvalues, 
-            covariates=None, 
+            covariates=covariates, 
             pylmm_resolution=100, 
             cutoff=args.cutoff)
 
