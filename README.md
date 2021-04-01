@@ -6,7 +6,7 @@ We currently offer a general Python implementation, and a more limited, but quit
 
 Comments, questions, requests etc. are welcome at regevs@gmail.com.
 
-Citation: Schweiger, Regev, Eyal Fisher, Omer Weissbrod, Elior Rahmani, Martina Müller-Nurasyid, Sonja Kunze, Christian Gieger, Melanie Waldenberger, Saharon Rosset, and Eran Halperin. "Detecting heritable phenotypes without a model using fast permutation testing for heritability and set-tests." Nature communications 9, no. 1 (2018): 4919.
+Citation: [Schweiger, Regev, Eyal Fisher, Omer Weissbrod, Elior Rahmani, Martina Müller-Nurasyid, Sonja Kunze, Christian Gieger, Melanie Waldenberger, Saharon Rosset, and Eran Halperin. "Detecting heritable phenotypes without a model using fast permutation testing for heritability and set-tests." Nature communications 9, no. 1 (2018): 4919](https://www.nature.com/articles/s41467-018-07276-w).
 
 ## Simple example
 
